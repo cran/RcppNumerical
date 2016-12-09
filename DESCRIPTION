@@ -1,8 +1,8 @@
 Package: RcppNumerical
 Type: Package
 Title: 'Rcpp' Integration for Numerical Computing Libraries
-Version: 0.3-0
-Date: 2016-12-08
+Version: 0.3-1
+Date: 2016-12-09
 Authors@R: c(
     person("Yixuan", "Qiu", , "yixuan.qiu@cos.name", c("aut", "cre")),
     person("Sreekumar", "Balan", role = "aut",
@@ -31,7 +31,7 @@ Suggests: knitr, prettydoc, mvtnorm
 VignetteBuilder: knitr
 RoxygenNote: 5.0.1
 NeedsCompilation: yes
-Packaged: 2016-12-08 15:55:39 UTC; qyx
+Packaged: 2016-12-09 01:02:08 UTC; qyx
 Author: Yixuan Qiu [aut, cre],
   Sreekumar Balan [aut] (Numerical integration library),
   Matt Beall [aut] (Numerical integration library),
@@ -39,4 +39,4 @@ Author: Yixuan Qiu [aut, cre],
   Naoaki Okazaki [aut] (The libLBFGS library),
   Thomas Hahn [aut] (The Cuba library)
 Repository: CRAN
-Date/Publication: 2016-12-08 18:38:45
+Date/Publication: 2016-12-09 08:58:45

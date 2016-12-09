@@ -114,11 +114,13 @@ in the C++ source file.</li>
 {
 <span class="kw">public</span>:
     <span class="kw">virtual</span> <span class="dt">double</span> <span class="kw">operator</span>()(<span class="dt">const</span> <span class="dt">double</span>&amp; x) <span class="dt">const</span> = <span class="dv">0</span>;
-    <span class="kw">virtual</span> <span class="dt">void</span>   <span class="kw">operator</span>()(<span class="dt">double</span>* x, <span class="dt">const</span> <span class="dt">int</span> n) <span class="dt">const</span>
+    <span class="kw">virtual</span> <span class="dt">void</span> eval(<span class="dt">double</span>* x, <span class="dt">const</span> <span class="dt">int</span> n) <span class="dt">const</span>
     {
         <span class="kw">for</span>(<span class="dt">int</span> i = <span class="dv">0</span>; i &lt; n; i++)
             x[i] = <span class="kw">this</span>-&gt;<span class="kw">operator</span>()(x[i]);
     }
+    
+    <span class="kw">virtual</span> ~Func() {}
 };</code></pre></div>
 <p>The first function evaluates one point at a time, and the second version overwrites each point in the array by the corresponding function values. Only the second function will be used by the integration code, but usually it is easier to implement the first one.</p>
 <p><strong>RcppNumerical</strong> provides a wrapper function for the <strong>NumericalIntegration</strong> library with the following interface:</p>
@@ -200,6 +202,8 @@ Rcpp::List integrate_test()
 {
 <span class="kw">public</span>:
     <span class="kw">virtual</span> <span class="dt">double</span> <span class="kw">operator</span>()(Constvec&amp; x) = <span class="dv">0</span>;
+    
+    <span class="kw">virtual</span> ~MFunc() {}
 };</code></pre></div>
 <p>Here <code>Constvec</code> represents a read-only vector with the definition</p>
 <div class="sourceCode"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span class="co">// Constant reference to a vector</span>
@@ -291,6 +295,8 @@ trueval =<span class="st"> </span><span class="kw">pmvnorm</span>(<span class="k
 {
 <span class="kw">public</span>:
     <span class="kw">virtual</span> <span class="dt">double</span> f_grad(Constvec&amp; x, Refvec grad) = <span class="dv">0</span>;
+    
+    <span class="kw">virtual</span> ~MFuncGrad() {}
 };</code></pre></div>
 <p>Same as the case in multi-dimensional integration, <code>Constvec</code> represents a read-only vector and <code>Refvec</code> a writable vector. Their definitions are</p>
 <div class="sourceCode"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span class="co">// Reference to a vector</span>
@@ -433,10 +439,10 @@ y =<span class="st"> </span><span class="kw">rbinom</span>(n, <span class="dv">1
 
 <span class="kw">system.time</span>(res1 &lt;-<span class="st"> </span><span class="kw">glm.fit</span>(x, y, <span class="dt">family =</span> <span class="kw">binomial</span>())$coefficients)
 <span class="co">#    user  system elapsed </span>
-<span class="co">#   0.459   0.003   0.464</span>
+<span class="co">#   0.546   0.008   0.556</span>
 <span class="kw">system.time</span>(res2 &lt;-<span class="st"> </span><span class="kw">logistic_reg</span>(x, y))
 <span class="co">#    user  system elapsed </span>
-<span class="co">#   0.005   0.000   0.005</span>
+<span class="co">#   0.006   0.000   0.007</span>
 <span class="kw">max</span>(<span class="kw">abs</span>(res1 -<span class="st"> </span>res2))
 <span class="co"># [1] 0.0001873564</span></code></pre></div>
 <p>It is much faster than the standard <code>glm.fit()</code> function in R! (Although <code>glm.fit()</code> calculates some other quantities besides beta.)</p>
