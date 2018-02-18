@@ -1,6 +1,15 @@
 \name{NEWS}
 \title{News for Package "RcppNumerical"}
 
+\section{Changes in RcppNumerical version 0.3-2}{
+  \subsection{BUG FIXES}{
+    \itemize{
+      \item Fixed a convergence test bug in LBFGS++.
+      \item Registered native routines per CRAN's policy.
+    }
+  }
+}
+
 \section{Changes in RcppNumerical version 0.3-1}{
   \subsection{BUG FIXES}{
     \itemize{
