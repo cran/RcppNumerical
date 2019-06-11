@@ -1,8 +1,8 @@
 Package: RcppNumerical
 Type: Package
 Title: 'Rcpp' Integration for Numerical Computing Libraries
-Version: 0.3-2
-Date: 2018-02-18
+Version: 0.3-3
+Date: 2019-06-10
 Authors@R: c(
     person("Yixuan", "Qiu", , "yixuan.qiu@cos.name", c("aut", "cre")),
     person("Sreekumar", "Balan", role = "aut",
@@ -28,10 +28,10 @@ LazyData: TRUE
 Imports: Rcpp
 LinkingTo: Rcpp, RcppEigen
 Suggests: knitr, rmarkdown, prettydoc, mvtnorm, RcppEigen
-VignetteBuilder: knitr, rmarkdown, prettydoc
-RoxygenNote: 6.0.1
+VignetteBuilder: knitr, rmarkdown
+RoxygenNote: 6.1.1
 NeedsCompilation: yes
-Packaged: 2018-02-18 21:20:27 UTC; qyx
+Packaged: 2019-06-11 01:40:53 UTC; qyx
 Author: Yixuan Qiu [aut, cre],
   Sreekumar Balan [aut] (Numerical integration library),
   Matt Beall [aut] (Numerical integration library),
@@ -39,4 +39,4 @@ Author: Yixuan Qiu [aut, cre],
   Naoaki Okazaki [aut] (The libLBFGS library),
   Thomas Hahn [aut] (The Cuba library)
 Repository: CRAN
-Date/Publication: 2018-02-18 22:23:39 UTC
+Date/Publication: 2019-06-11 04:30:17 UTC
