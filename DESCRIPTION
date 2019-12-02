@@ -1,10 +1,12 @@
 Package: RcppNumerical
 Type: Package
 Title: 'Rcpp' Integration for Numerical Computing Libraries
-Version: 0.3-3
-Date: 2019-06-10
+Version: 0.4-0
+Date: 2019-12-01
 Authors@R: c(
-    person("Yixuan", "Qiu", , "yixuan.qiu@cos.name", c("aut", "cre")),
+    person("Yixuan", "Qiu", email = "yixuan.qiu@cos.name", role = c("aut", "cre")),
+    person("Ralf", "Stubner", email = "ralf.stubner@gmail.com", role = "ctb",
+           comment = "Integration on infinite intervals"),
     person("Sreekumar", "Balan", role = "aut",
            comment = "Numerical integration library"),
     person("Matt", "Beall", role = "aut",
@@ -29,14 +31,15 @@ Imports: Rcpp
 LinkingTo: Rcpp, RcppEigen
 Suggests: knitr, rmarkdown, prettydoc, mvtnorm, RcppEigen
 VignetteBuilder: knitr, rmarkdown
-RoxygenNote: 6.1.1
+RoxygenNote: 7.0.1
 NeedsCompilation: yes
-Packaged: 2019-06-11 01:40:53 UTC; qyx
+Packaged: 2019-12-02 16:22:03 UTC; qyx
 Author: Yixuan Qiu [aut, cre],
+  Ralf Stubner [ctb] (Integration on infinite intervals),
   Sreekumar Balan [aut] (Numerical integration library),
   Matt Beall [aut] (Numerical integration library),
   Mark Sauder [aut] (Numerical integration library),
   Naoaki Okazaki [aut] (The libLBFGS library),
   Thomas Hahn [aut] (The Cuba library)
 Repository: CRAN
-Date/Publication: 2019-06-11 04:30:17 UTC
+Date/Publication: 2019-12-02 20:20:07 UTC

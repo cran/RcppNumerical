@@ -1,4 +1,5 @@
-// Copyright (C) 2016 Yixuan Qiu <yixuan.qiu@cos.name>
+// Copyright (C) 2016-2019 Yixuan Qiu <yixuan.qiu@cos.name>
+// Copyright (C) 2019 Ralf Stubner <ralf.stubner@gmail.com>
 //
 // This Source Code Form is subject to the terms of the Mozilla
 // Public License v. 2.0. If a copy of the MPL was not distributed
@@ -15,6 +16,47 @@
 namespace Numer
 {
 
+
+
+// Internal implementation
+namespace detail
+{
+
+class transform_infinite: public Func
+{
+private:
+    const Func& func;
+    const double lower;
+    const double upper;
+    const bool lower_finite;
+    const bool upper_finite;
+
+public:
+    transform_infinite(const Func& _func, double _lower, double _upper) :
+        func(_func), lower(_lower), upper(_upper),
+        lower_finite(lower > -std::numeric_limits<double>::infinity()),
+        upper_finite(upper < std::numeric_limits<double>::infinity())
+    {}
+
+    // Map infinite interval to (0, 1)
+    double operator() (const double& t) const
+    {
+        const double x = (1 - t) / t;
+        if (upper_finite && lower_finite)
+            Rcpp::stop("At least one limit must be infinite.");
+        else if (lower_finite)
+            return func(lower + x) / (t * t);
+        else if (upper_finite)
+            return func(upper - x) / (t * t);
+        else
+            return (func(x) + func(-x)) / (t * t);
+    }
+};
+
+} // namespace detail
+
+
+
 //
 // [RcppNumerical API] 1-D numerical integration
 //
@@ -25,14 +67,46 @@ inline double integrate(
     const Integrator<double>::QuadratureRule rule = Integrator<double>::GaussKronrod41
 )
 {
+    // Early exit if lower and upper limits are identical
+    if (upper == lower)
+    {
+        err_est = 0.0;
+        err_code = 0;
+        return 0.0;
+    }
+
+    // Finite interval
+    if (std::abs(upper) < std::numeric_limits<double>::infinity() &&
+        std::abs(lower) < std::numeric_limits<double>::infinity())
+    {
+        Integrator<double> intgr(subdiv);
+        double res = intgr.quadratureAdaptive(f, lower, upper, eps_abs, eps_rel, rule);
+        err_est = intgr.estimatedError();
+        err_code = intgr.errorCode();
+        return res;
+    }
+
+    // Infinite interval
+    double sign = 1.0, lb = lower, ub = upper;
+    if (ub < lb)
+    {
+        std::swap(ub, lb);
+        sign = -1.0;
+    }
+    detail::transform_infinite g(f, lb, ub);
+
     Integrator<double> intgr(subdiv);
-    double res = intgr.quadratureAdaptive(f, lower, upper, eps_abs, eps_rel, rule);
+    double res = intgr.quadratureAdaptive(g, 0.0, 1.0, eps_abs, eps_rel, rule);
     err_est = intgr.estimatedError();
     err_code = intgr.errorCode();
-    return res;
+    return sign * res;
 }
 
 /****************************************************************************/
+
+// Internal implementation
+namespace detail
+{
 
 // Integrate R function
 class RFunc: public Func
@@ -68,6 +142,10 @@ public:
     }
 };
 
+} // namespace detail
+
+
+
 //
 // [RcppNumerical API] 1-D numerical integration for R function
 //
@@ -79,7 +157,7 @@ inline double integrate(
 )
 {
     Integrator<double> intgr(subdiv);
-    RFunc rfun(f, args);
+    detail::RFunc rfun(f, args);
     double res = intgr.quadratureAdaptive(rfun, lower, upper, eps_abs, eps_rel, rule);
     err_est = intgr.estimatedError();
     err_code = intgr.errorCode();
@@ -87,6 +165,10 @@ inline double integrate(
 }
 
 /****************************************************************************/
+
+// Internal implementation
+namespace detail
+{
 
 // Function type for Cuhre()
 typedef void (*CFUN_Cuhre_TYPE)(const int ndim, const int ncomp,
@@ -135,6 +217,10 @@ public:
 
 };
 
+} // namespace detail
+
+
+
 //
 // [RcppNumerical API] Multi-dimensional integration
 //
@@ -145,15 +231,15 @@ inline double integrate(
 )
 {
     // Find the Cuhre() function
-    CFUN_Cuhre_TYPE cfun_Cuhre = (CFUN_Cuhre_TYPE) R_GetCCallable("RcppNumerical", "Cuhre");
+    detail::CFUN_Cuhre_TYPE cfun_Cuhre = (detail::CFUN_Cuhre_TYPE) R_GetCCallable("RcppNumerical", "Cuhre");
 
-    MFuncWithBound fb(f, lower, upper);
+    detail::MFuncWithBound fb(f, lower, upper);
     int nregions;
     int neval;
     double integral;
     double prob;
 
-    cfun_Cuhre(lower.size(), 1, cuhre_integrand, &fb, 1,
+    cfun_Cuhre(lower.size(), 1, detail::cuhre_integrand, &fb, 1,
                eps_rel, eps_abs,
                4, 1, maxeval,
                0,
@@ -165,6 +251,7 @@ inline double integrate(
 
     return integral;
 }
+
 
 
 }  // namespace Numer
