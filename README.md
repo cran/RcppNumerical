@@ -149,8 +149,8 @@ integrate_test()
 #### Multi-dimensional
 
 Multi-dimensional integration in **RcppNumerical** is done by the
-[Cuba](http://www.feynarts.de/cuba/) library developed by
-[Thomas Hahn](http://wwwth.mpp.mpg.de/members/hahn/).
+[Cuba](https://feynarts.de/cuba/) library developed by
+[Thomas Hahn](https://wwwth.mpp.mpg.de/members/hahn/).
 
 To calculate the integration of a multivariate function, one needs to define
 a functor that inherits from the `MFunc` class:
@@ -174,7 +174,7 @@ typedef const Eigen::Ref<const Eigen::VectorXd> Constvec;
 
 (Basically you can treat `Constvec` as a `const Eigen::VectorXd`. Using
 `Eigen::Ref` is mainly to avoid memory copy. See the explanation
-[here](http://eigen.tuxfamily.org/dox/classEigen_1_1Ref.html).)
+[here](https://eigen.tuxfamily.org/dox/classEigen_1_1Ref.html).)
 
 The function provided by **RcppNumerical** for multi-dimensional
 integration is
