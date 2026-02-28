@@ -1,4 +1,4 @@
-// Copyright (C) 2016 Yixuan Qiu <yixuan.qiu@cos.name>
+// Copyright (C) 2016-2026 Yixuan Qiu <yixuan.qiu@cos.name>
 //
 // This Source Code Form is subject to the terms of the Mozilla
 // Public License v. 2.0. If a copy of the MPL was not distributed
@@ -9,6 +9,8 @@
 
 #include <RcppEigen.h>
 #include "LBFGS.h"
+#include "LBFGSB.h"
+#include "../Func.h"
 
 namespace Numer
 {
@@ -55,6 +57,46 @@ inline int optim_lbfgs(
 
     try {
         solver.minimize(fun, xx, fx_opt);
+    } catch(const std::exception& e) {
+        status = -1;
+        Rcpp::warning(e.what());
+    }
+
+    x.noalias() = xx;
+
+    return status;
+}
+
+// [RcppNumerical API] Optimization using L-BFGS-B algorithm with box constraints
+inline int optim_lbfgsb(
+    MFuncGrad& f, Refvec x, double& fx_opt,
+    Constvec& lb, Constvec& ub,
+    const int maxit = 300, const double& eps_f = 1e-6, const double& eps_g = 1e-5
+)
+{
+    // Create functor (reuse existing LBFGSFun)
+    LBFGSFun fun(f);
+
+    // Prepare parameters
+    LBFGSpp::LBFGSBParam<double> param;
+    param.epsilon        = eps_g;
+    param.epsilon_rel    = eps_g;
+    param.past           = 1;
+    param.delta          = eps_f;
+    param.max_iterations = maxit;
+    param.max_linesearch = 100;
+
+    // Solver
+    LBFGSpp::LBFGSBSolver<double> solver(param);
+
+    int status = 0;
+    Eigen::VectorXd xx(x.size()), lbv(lb.size()), ubv(ub.size());
+    xx.noalias() = x;
+    lbv.noalias() = lb;
+    ubv.noalias() = ub;
+
+    try {
+        solver.minimize(fun, xx, fx_opt, lbv, ubv);
     } catch(const std::exception& e) {
         status = -1;
         Rcpp::warning(e.what());

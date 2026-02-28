@@ -5,20 +5,27 @@ knitr::opts_chunk$set(message = FALSE, warning = FALSE,
                       comment = "#", collapse = TRUE)
 
 ## -----------------------------------------------------------------------------
-integrate_test()
-
-## -----------------------------------------------------------------------------
-integrate(function(x) x^2 * dnorm(x), 0.5, Inf)  # integrate() in R
-integrate_test2(0.5, Inf)
+integrate_1d_test()
 
 ## -----------------------------------------------------------------------------
 library(mvtnorm)
 trueval = pmvnorm(c(-1, -1), c(1, 1), sigma = matrix(c(1, 0.5, 0.5, 1), 2))
-integrate_test2()
-as.numeric(trueval) - integrate_test2()$approximate
+integrate_md_test()
+as.numeric(trueval) - integrate_md_test()$approximate
+
+## -----------------------------------------------------------------------------
+# integrate() in R
+integrate(function(x) x^2 * dnorm(x), 0.5, Inf)
+integrate_1d_inf_test(0.5, Inf)
+
+## -----------------------------------------------------------------------------
+integrate_md_inf_test()
 
 ## -----------------------------------------------------------------------------
 optim_test()
+
+## -----------------------------------------------------------------------------
+optim_box_test()
 
 ## -----------------------------------------------------------------------------
 set.seed(123)

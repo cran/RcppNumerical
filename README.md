@@ -4,8 +4,11 @@
 - [Numerical Integration](#numerical-integration)
   - [One-dimensional](#one-dimensional)
   - [Multi-dimensional](#multi-dimensional)
+  - [Handling Infinite Limits](#handling-infinite-limits)
 - [Numerical Optimization](#numerical-optimization)
-- [A More Interesting Example](#a-more-interesting-example)
+  - [Unconstrained Minimization](#unconstrained-minimization)
+  - [Box-constrained Minimization](#box-constrained-minimization)
+- [A Practical Example](#a-practical-example)
 
 ### Introduction
 
@@ -50,7 +53,7 @@ public:
         for(int i = 0; i < n; i++)
             x[i] = this->operator()(x[i]);
     }
-    
+
     virtual ~Func() {}
 };
 ```
@@ -109,7 +112,7 @@ public:
 };
 
 // [[Rcpp::export]]
-Rcpp::List integrate_test()
+Rcpp::List integrate_1d_test()
 {
     const double a = 3, b = 10;
     const double lower = 0.3, upper = 0.8;
@@ -129,10 +132,10 @@ Rcpp::List integrate_test()
 }
 ```
 
-Runing the `integrate_test()` function in R gives
+Runing the `integrate_1d_test()` function in R gives
 
 ```r
-integrate_test()
+integrate_1d_test()
 ## $true
 ## [1] 0.2528108
 ##
@@ -160,7 +163,7 @@ class MFunc
 {
 public:
     virtual double operator()(Constvec& x) = 0;
-    
+
     virtual ~MFunc() {}
 };
 ```
@@ -169,12 +172,12 @@ Here `Constvec` represents a read-only vector with the definition
 
 ```cpp
 // Constant reference to a vector
-typedef const Eigen::Ref<const Eigen::VectorXd> Constvec;
+using Constvec = const Eigen::Ref<const Eigen::VectorXd>;
 ```
 
 (Basically you can treat `Constvec` as a `const Eigen::VectorXd`. Using
 `Eigen::Ref` is mainly to avoid memory copy. See the explanation
-[here](https://eigen.tuxfamily.org/dox/classEigen_1_1Ref.html).)
+[here](https://libeigen.gitlab.io/eigen/docs-nightly/classEigen_1_1Ref.html).)
 
 The function provided by **RcppNumerical** for multi-dimensional
 integration is
@@ -230,7 +233,7 @@ public:
 };
 
 // [[Rcpp::export]]
-Rcpp::List integrate_test2()
+Rcpp::List integrate_md_test()
 {
     BiNormal f(0.5);  // rho = 0.5
     Eigen::VectorXd lower(2);
@@ -253,7 +256,7 @@ We can test the result in R:
 ```r
 library(mvtnorm)
 trueval = pmvnorm(c(-1, -1), c(1, 1), sigma = matrix(c(1, 0.5, 0.5, 1), 2))
-integrate_test2()
+integrate_md_test()
 ## $approximate
 ## [1] 0.4979718
 ##
@@ -262,13 +265,159 @@ integrate_test2()
 ##
 ## $error_code
 ## [1] 0
-trueval - integrate_test2()$approximate
+as.numeric(trueval) - integrate_md_test()$approximate
 ## [1] 2.893336e-11
+```
+
+#### Handling Infinite Limits
+
+Infinite intagral limits are also supported. In the case of one-dimensional integration:
+
+```cpp
+// [[Rcpp::depends(RcppEigen)]]
+// [[Rcpp::depends(RcppNumerical)]]
+#include <RcppNumerical.h>
+using namespace Numer;
+
+class TestInf: public Func
+{
+public:
+    double operator()(const double& x) const
+    {
+        return x * x * R::dnorm(x, 0.0, 1.0, 0);
+    }
+};
+
+// [[Rcpp::export]]
+Rcpp::List integrate_1d_inf_test(const double& lower, const double& upper)
+{
+    TestInf f;
+    double err_est;
+    int err_code;
+    const double res = integrate(f, lower, upper, err_est, err_code);
+    return Rcpp::List::create(
+        Rcpp::Named("approximate") = res,
+        Rcpp::Named("error_estimate") = err_est,
+        Rcpp::Named("error_code") = err_code
+    );
+}
+```
+
+```r
+# integrate() in R
+integrate(function(x) x^2 * dnorm(x), 0.5, Inf)
+## 0.4845702 with absolute error < 3e-08
+integrate_1d_inf_test(0.5, Inf)
+## $approximate
+## [1] 0.4845702
+##
+## $error_estimate
+## [1] 1.633995e-08
+##
+## $error_code
+## [1] 0
+```
+
+Similarly, for multi-dimensional integration, infinite limits are supported in each
+dimension by specifying `std::numeric_limits<double>::infinity()` or
+`-std::numeric_limits<double>::infinity()`:
+
+```cpp
+// [[Rcpp::depends(RcppEigen)]]
+// [[Rcpp::depends(RcppNumerical)]]
+#include <RcppNumerical.h>
+using namespace Numer;
+
+// Test 1: Semi-infinite [0, +Inf) x [0, 1]
+// Integrate exp(-x) over x in [0, +Inf) and y in [0, 1]
+// True value: 1.0
+class SemiInfiniteTest: public MFunc
+{
+public:
+    double operator()(Constvec& x)
+    {
+        return std::exp(-x[0]);
+    }
+};
+
+// Test 2: Doubly-infinite (-Inf, +Inf) x [0, 1]
+// Integrate exp(-x^2) over x in (-Inf, +Inf) and y in [0, 1]
+// True value: sqrt(pi)
+class DoublyInfiniteTest: public MFunc
+{
+public:
+    double operator()(Constvec& x)
+    {
+        return std::exp(-x[0] * x[0]);
+    }
+};
+
+// Test 3: All infinite bounds
+// Integrate exp(-x^2 - y^2) over (-Inf, +Inf) x (-Inf, +Inf)
+// Expected: pi
+class Gaussian2D: public MFunc
+{
+public:
+    double operator()(Constvec& x)
+    {
+        return std::exp(-x[0] * x[0] - x[1] * x[1]);
+    }
+};
+
+// [[Rcpp::export]]
+Rcpp::List integrate_md_inf_test()
+{
+    constexpr double Inf = std::numeric_limits<double>::infinity();
+    double err_est;
+    int err_code;
+
+    Eigen::VectorXd lower(2), upper(2);
+
+    // Test 1: Semi-infinite
+    lower[0] = 0.0; upper[0] = Inf;
+    lower[1] = 0.0; upper[1] = 1.0;
+    SemiInfiniteTest f1;
+    double res1 = integrate(f1, lower, upper, err_est, err_code);
+
+    // Test 2: Doubly-infinite
+    lower[0] = -Inf; upper[0] = Inf;
+    lower[1] = 0.0; upper[1] = 1.0;
+    DoublyInfiniteTest f2;
+    double res2 = integrate(f2, lower, upper, err_est, err_code);
+
+    // Test 3: All infinite
+    lower[0] = -Inf; upper[0] = Inf;
+    lower[1] = -Inf; upper[1] = Inf;
+    Gaussian2D f3;
+    double res3 = integrate(f3, lower, upper, err_est, err_code);
+
+    return Rcpp::List::create(
+        Rcpp::Named("semi_infinite") = res1,
+        Rcpp::Named("doubly_infinite") = res2,
+        Rcpp::Named("all_infinite") = res3
+    );
+}
+```
+
+Calling the generated R function `integrate_md_inf_test()` gives
+
+```r
+integrate_md_inf_test()
+## $semi_infinite
+## [1] 1
+##
+## $doubly_infinite
+## [1] 1.772454
+##
+## $all_infinite
+## [1] 3.141542
 ```
 
 ### Numerical Optimization
 
-Currently **RcppNumerical** contains the L-BFGS algorithm for unconstrained
+#### Unconstrained Minimization
+
+Currently **RcppNumerical** uses the L-BFGS algorithm to solve unconstrained
 minimization problems based on the
 [LBFGS++](https://github.com/yixuan/LBFGSpp) library.
 
@@ -280,7 +429,7 @@ class MFuncGrad
 {
 public:
     virtual double f_grad(Constvec& x, Refvec grad) = 0;
-    
+
     virtual ~MFuncGrad() {}
 };
 ```
@@ -290,14 +439,14 @@ read-only vector and `Refvec` a writable vector. Their definitions are
 
 ```cpp
 // Reference to a vector
-typedef Eigen::Ref<Eigen::VectorXd>             Refvec;
-typedef const Eigen::Ref<const Eigen::VectorXd> Constvec;
+using RefVec = Eigen::Ref<Eigen::VectorXd>;
+using Constvec = const Eigen::Ref<const Eigen::VectorXd>;
 ```
 
 The `f_grad()` member function returns the function value on vector `x`,
 and overwrites `grad` by the gradient.
 
-The wrapper function for **LBFGS++** is
+The wrapper function for L-BFGS is
 
 ```cpp
 inline int optim_lbfgs(
@@ -307,7 +456,7 @@ inline int optim_lbfgs(
 ```
 
 - `f`: The function to be minimized.
-- `x`: In: the initial guess. Out: best value of variables found.
+- `x`: In: The initial guess. Out: Best value of variables found.
 - `fx_opt`: Out: Function value on the output `x`.
 - `maxit`: Maximum number of iterations.
 - `eps_f`: Algorithm stops if `|f_{k+1} - f_k| < eps_f * |f_k|`.
@@ -362,16 +511,110 @@ Calling the generated R function `optim_test()` gives
 ```r
 optim_test()
 ## $xopt
-## [1] 1 1
+## [1] 0.9999683 0.9999354
 ##
 ## $fopt
-## [1] 3.12499e-15
+## [1] 1.150395e-09
 ##
 ## $status
 ## [1] 0
 ```
 
-### A More Practical Example
+#### Box-constrained Minimization
+
+For optimization problems with box constraints (i.e., each variable has a lower
+and upper bound), **RcppNumerical** provides the L-BFGS-B algorithm, also based
+on the [LBFGS++](https://github.com/yixuan/LBFGSpp) library.
+
+The functor definition is the same as that in the unconstrained minimization
+problems, *i.e.*, inheriting from `MFuncGrad`.
+
+The wrapper function for box-constrained optimization is
+
+```cpp
+inline int optim_lbfgsb(
+    MFuncGrad& f, Refvec x, double& fx_opt,
+    Constvec& lb, Constvec& ub,
+    const int maxit = 300, const double& eps_f = 1e-6, const double& eps_g = 1e-5
+)
+```
+
+- `f`: The function to be minimized.
+- `x`: In: The initial guess. Out: Best value of variables found.
+- `fx_opt`: Out: Function value on the output `x`.
+- `lb`: In: Lower bounds for each variable.
+- `ub`: In: Upper bounds for each variable.
+- `maxit`: Maximum number of iterations.
+- `eps_f`: Algorithm stops if `|f_{k+1} - f_k| < eps_f * |f_k|`.
+- `eps_g`: Algorithm stops if the projected gradient norm satisfies the tolerance.
+- Return value: Error code. Negative values indicate errors.
+
+Below is an example that minimizes the same Rosenbrock function, but this time
+with box constraints that force the first variable in [-2, 0.5] and second
+variable in [0, +Inf).
+
+```cpp
+// [[Rcpp::depends(RcppEigen)]]
+// [[Rcpp::depends(RcppNumerical)]]
+
+#include <RcppNumerical.h>
+
+using namespace Numer;
+
+// f = 100 * (x2 - x1^2)^2 + (1 - x1)^2
+class Rosenbrock: public MFuncGrad
+{
+public:
+    double f_grad(Constvec& x, Refvec grad)
+    {
+        double t1 = x[1] - x[0] * x[0];
+        double t2 = 1 - x[0];
+        grad[0] = -400 * x[0] * t1 - 2 * t2;
+        grad[1] = 200 * t1;
+        return 100 * t1 * t1 + t2 * t2;
+    }
+};
+
+// [[Rcpp::export]]
+Rcpp::List optim_box_test()
+{
+    Eigen::VectorXd x(2), lb(2), ub(2);
+    // Initial guess
+    x[0] = -1.2;
+    x[1] = 1;
+    // Bounds [-2, 0.5] for firsts variable
+    lb[0] = -2;
+    ub[0] = 0.5;
+    // Bounds [0, +Inf) for second variable -- infinite values are supported
+    lb[1] = 0;
+    ub[1] = std::numeric_limits<double>::infinity();
+
+    double fopt;
+    Rosenbrock f;
+    int res = optim_lbfgsb(f, x, fopt, lb, ub);
+    return Rcpp::List::create(
+        Rcpp::Named("xopt") = x,
+        Rcpp::Named("fopt") = fopt,
+        Rcpp::Named("status") = res
+    );
+}
+```
+
+Calling the generated R function `optim_box_test()` gives
+
+```r
+optim_box_test()
+## $xopt
+## [1] 0.50 0.25
+##
+## $fopt
+## [1] 0.25
+##
+## $status
+## [1] 0
+```
+
+### A Practical Example
 
 It may be more meaningful to look at a real application of the **RcppNumerical**
 package. Below is an example to fit logistic regression using the L-BFGS
@@ -385,8 +628,8 @@ algorithm. It also demonstrates the performance of the library.
 
 using namespace Numer;
 
-typedef Eigen::Map<Eigen::MatrixXd> MapMat;
-typedef Eigen::Map<Eigen::VectorXd> MapVec;
+using MapMat = Eigen::Map<Eigen::MatrixXd>;
+using MapVec = Eigen::Map<Eigen::VectorXd>;
 
 class LogisticReg: public MFuncGrad
 {
